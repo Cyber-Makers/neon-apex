@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#05070c">
+    <title>Neon Apex Racing 2D - Pro Leaderboard Edition</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        @font-face { font-family: 'Orbitron'; font-weight: 400; src: url('fonts/orbitron-latin-400-normal.woff2') format('woff2'); }
+        @font-face { font-family: 'Orbitron'; font-weight: 700; src: url('fonts/orbitron-latin-700-normal.woff2') format('woff2'); }
+        @font-face { font-family: 'Orbitron'; font-weight: 900; src: url('fonts/orbitron-latin-900-normal.woff2') format('woff2'); }
+
+        * { user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; box-sizing: border-box; }
+        input { user-select: text; -webkit-user-select: text; }
+        .touch-btn, #gameCanvas { touch-action: none; }
+
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #05070c; font-family: 'Orbitron', sans-serif; }
+        #gameCanvas { display: block; width: 100vw; height: 100vh; background-color: #070a14; }
+
+        .safe-top { padding-top: env(safe-area-inset-top, 0px); }
+        .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+        .glass-panel { background: rgba(10, 15, 30, 0.88); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(0, 240, 255, 0.3); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.7); }
+        .touch-btn { background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(0, 240, 255, 0.3); box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4); transition: all 0.1s ease; }
+        .touch-btn:active, .touch-btn.active { background: rgba(0, 240, 255, 0.35); border-color: #00f0ff; transform: scale(0.95); }
+        .nitro-btn { background: rgba(255, 0, 85, 0.2); border: 1px solid rgba(255, 0, 85, 0.5); }
+        .nitro-btn:active, .nitro-btn.active { background: rgba(255, 0, 85, 0.6); border-color: #ff0055; }
+
+        @keyframes bannerPulse {
+            0% { opacity: 0; transform: translate(-50%, -60%) scale(0.8); }
+            15% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+            80% { opacity: 1; transform: translate(-50%, -50%) scale(1.0); }
+            100% { opacity: 0; transform: translate(-50%, -40%) scale(0.9); }
+        }
+        .banner-anim { animation: bannerPulse 1.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+        .car-card { transition: all 0.2s ease; cursor: pointer; }
+        .car-card.selected { border-color: #00f0ff; background: rgba(0, 240, 255, 0.15); box-shadow: 0 0 20px rgba(0, 240, 255, 0.4); }
+    </style>
+</head>
+<body class="relative flex items-center justify-center min-h-screen overflow-hidden">
+
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Start Screen -->
+    <div id="startScreen" class="fixed inset-0 bg-slate-950/90 z-50 flex items-center justify-center p-4 safe-top safe-bottom">
+        <div class="glass-panel p-5 rounded-3xl max-w-lg w-full border-2 border-cyan-400 text-center flex flex-col items-center gap-4 shadow-[0_0_60px_rgba(0,240,255,0.3)] max-h-[95vh] overflow-y-auto">
+            <h1 class="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-pink-500 tracking-wider">NEON APEX</h1>
+            <p class="text-[10px] text-slate-400 font-bold tracking-widest uppercase">CAR POV SIMULATOR</p>
+
+            <div class="w-full text-left">
+                <label class="text-[10px] text-cyan-400 font-bold tracking-widest uppercase block mb-1">PILOT NAME</label>
+                <input id="playerNameInput" type="text" value="Amin" maxlength="12" class="w-full bg-slate-900/90 border border-cyan-500/50 rounded-xl px-4 py-2.5 text-white font-bold tracking-wider outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/30 transition-all text-sm" placeholder="Enter your pilot callsign...">
+            </div>
+
+            <div class="w-full text-left">
+                <label class="text-[10px] text-cyan-400 font-bold tracking-widest uppercase block mb-2">CHOOSE YOUR VEHICLE</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <div onclick="selectCar(0)" id="carCard0" class="car-card selected glass-panel p-2 rounded-xl border border-slate-700/60 text-center">
+                        <div class="text-[10px] leading-tight font-bold text-cyan-400">APEX CYBER</div>
+                        <div class="text-[9px] text-slate-400 mt-1 font-mono">SPD: 100%</div>
+                        <div class="text-[9px] text-slate-400 font-mono">ACC: 90%</div>
+                    </div>
+                    <div onclick="selectCar(1)" id="carCard1" class="car-card glass-panel p-2 rounded-xl border border-slate-700/60 text-center">
+                        <div class="text-[10px] leading-tight font-bold text-pink-500">NEON RUNNER</div>
+                        <div class="text-[9px] text-slate-400 mt-1 font-mono">SPD: 90%</div>
+                        <div class="text-[9px] text-slate-400 font-mono">ACC: 115%</div>
+                    </div>
+                    <div onclick="selectCar(2)" id="carCard2" class="car-card glass-panel p-2 rounded-xl border border-slate-700/60 text-center">
+                        <div class="text-[10px] leading-tight font-bold text-amber-400">PHANTOM GT</div>
+                        <div class="text-[9px] text-slate-400 mt-1 font-mono">SPD: 110%</div>
+                        <div class="text-[9px] text-slate-400 font-mono">ACC: 80%</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="w-full bg-slate-900/80 p-3 rounded-xl border border-slate-700/50 text-left text-[11px] text-slate-300 flex flex-col gap-1 font-mono">
+                <div class="flex justify-between"><span class="text-cyan-400 font-bold">DRIVE:</span> <span>🚀 button</span></div>
+                <div class="flex justify-between"><span class="text-cyan-400 font-bold">STEER:</span> <span>◄ ► buttons</span></div>
+                <div class="flex justify-between"><span class="text-cyan-400 font-bold">BRAKE / DRIFT:</span> <span>🛑 button</span></div>
+                <div class="flex justify-between"><span class="text-pink-400 font-bold">NITRO:</span> <span>NOS (hold with 🚀)</span></div>
+            </div>
+
+            <button id="btnStartGame" class="w-full py-3.5 bg-gradient-to-r from-cyan-500 to-pink-600 rounded-xl font-black text-base text-white tracking-widest active:scale-95 transition-all shadow-[0_0_25px_rgba(0,240,255,0.5)]">
+                START RACE
+            </button>
+        </div>
+    </div>
+
+    <!-- Victory Screen -->
+    <div id="victoryScreen" class="fixed inset-0 bg-slate-950/95 z-50 hidden flex items-center justify-center p-4 safe-top safe-bottom">
+        <div class="glass-panel p-5 rounded-3xl max-w-md w-full border-2 border-emerald-400 text-center flex flex-col items-center gap-4 shadow-[0_0_60px_rgba(16,185,129,0.4)] max-h-[95vh] overflow-y-auto">
+            <h1 class="text-3xl font-black text-emerald-400 tracking-wider">VICTORY!</h1>
+            <p class="text-[10px] text-slate-300 font-bold tracking-widest uppercase">Circuit Lap Completed</p>
+
+            <div class="w-full bg-slate-900/80 p-4 rounded-xl border border-slate-700/50 flex flex-col gap-2 font-mono text-left">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-slate-400">PILOT:</span>
+                    <span id="victoryPilotName" class="text-sm font-bold text-cyan-400">Amin</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-slate-400">LAP TIME:</span>
+                    <span id="victoryLapTime" class="text-lg font-bold text-white">00:00.00</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-emerald-400">BEST RECORD:</span>
+                    <span id="victoryBestTime" class="text-lg font-bold text-emerald-400">00:00.00</span>
+                </div>
+            </div>
+
+            <div class="w-full text-left">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="text-[10px] text-amber-400 font-bold tracking-widest uppercase">HALL OF FAME LEADERBOARD</label>
+                    <button id="btnClearLeaderboard" class="text-[10px] text-red-400 font-mono underline px-1 py-1">CLEAR RECORDS</button>
+                </div>
+                <div id="leaderboardList" class="w-full bg-slate-900/90 rounded-xl border border-slate-800 p-2 flex flex-col gap-1.5 font-mono text-xs max-h-48 overflow-y-auto"></div>
+            </div>
+
+            <button id="btnRaceAgain" class="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-cyan-600 rounded-xl font-black text-base text-white tracking-widest active:scale-95 transition-all shadow-[0_0_25px_rgba(16,185,129,0.5)]">
+                RACE AGAIN
+            </button>
+        </div>
+    </div>
+
+    <div id="crashOverlay" class="pointer-events-none fixed inset-0 bg-red-600/30 opacity-0 transition-opacity duration-100 z-40"></div>
+
+    <div id="countdownOverlay" class="pointer-events-none fixed inset-0 z-50 hidden flex items-center justify-center">
+        <div id="countdownText" class="text-8xl font-black text-transparent bg-clip-text bg-gradient-to-b from-cyan-300 to-pink-500 tracking-widest drop-shadow-[0_0_40px_rgba(0,240,255,0.8)]">3</div>
+    </div>
+
+    <div id="notifyBanner" class="pointer-events-none fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 hidden z-50 text-center w-[90%] max-w-sm">
+        <div id="bannerCard" class="glass-panel px-6 py-4 rounded-2xl border-2 border-red-500 shadow-[0_0_50px_rgba(255,0,0,0.6)]">
+            <h1 id="bannerTitle" class="text-3xl font-black text-red-500 tracking-wider">CRASHED!</h1>
+            <p id="bannerSub" class="text-xs text-slate-300 font-bold mt-1 tracking-widest uppercase">Resetting to track...</p>
+        </div>
+    </div>
+
+    <!-- Cockpit POV Overlay -->
+    <div id="povDashboard" class="pointer-events-none fixed inset-x-0 bottom-0 top-0 z-20 flex flex-col justify-between">
+        <div class="w-full h-32 bg-gradient-to-b from-black/80 via-black/20 to-transparent"></div>
+        <div class="w-full h-28 bg-gradient-to-t from-slate-950 via-slate-900/90 to-transparent flex justify-center items-end pb-1 relative">
+            <div id="povSteeringWheel" class="w-28 h-28 rounded-full border-4 border-slate-700/80 border-t-cyan-400 shadow-[0_0_20px_rgba(0,0,0,0.9)] flex items-center justify-center transition-transform duration-75 origin-center transform translate-y-16">
+                <div class="w-24 h-6 bg-slate-800/90 rounded-full flex justify-between items-center px-3">
+                    <div class="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_#00f0ff]"></div>
+                    <div id="hudPilotNameLabel" class="text-[9px] text-cyan-400 font-mono tracking-widest truncate max-w-[65px]">AMIN</div>
+                    <div class="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_#00f0ff]"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top HUD (portrait: two rows) -->
+    <div class="fixed top-0 inset-x-0 z-30 pointer-events-none safe-top">
+        <div class="px-3 pt-3 flex flex-col gap-2">
+            <div class="glass-panel px-3 py-2 rounded-2xl flex items-center justify-between gap-3 border border-cyan-500/30">
+                <div class="flex flex-col">
+                    <span class="text-[9px] text-cyan-400 tracking-widest font-bold uppercase">SPEED</span>
+                    <div class="flex items-baseline gap-1">
+                        <span id="speedValue" class="text-2xl font-black text-white">0</span>
+                        <span class="text-[10px] text-slate-400 font-bold">KM/H</span>
+                    </div>
+                </div>
+                <div class="h-8 w-[1px] bg-slate-700"></div>
+                <div class="flex flex-col">
+                    <span class="text-[9px] text-amber-400 tracking-widest font-bold uppercase">POSITION</span>
+                    <span id="posValue" class="text-2xl font-black text-amber-400 font-mono">1/4</span>
+                </div>
+                <div class="h-8 w-[1px] bg-slate-700"></div>
+                <div class="flex flex-col gap-1 min-w-[64px]">
+                    <span class="text-[9px] text-pink-500 tracking-widest font-bold uppercase">NOS</span>
+                    <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden border border-pink-500/30">
+                        <div id="nitroFill" class="h-full bg-gradient-to-r from-pink-600 to-cyan-400 rounded-full w-full"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-stretch gap-2">
+                <div class="glass-panel px-3 py-1.5 rounded-2xl flex items-center gap-3 border border-cyan-500/30">
+                    <div class="flex flex-col items-center">
+                        <span class="text-[8px] text-cyan-400 tracking-widest font-bold uppercase">CURRENT LAP</span>
+                        <span id="currentLapTimer" class="text-base font-black text-white font-mono">00:00.00</span>
+                    </div>
+                    <div class="h-7 w-[1px] bg-slate-700"></div>
+                    <div class="flex flex-col items-center">
+                        <span class="text-[8px] text-emerald-400 tracking-widest font-bold uppercase">BEST LAP</span>
+                        <span id="bestLapTimer" class="text-base font-black text-emerald-400 font-mono">--:--.--</span>
+                    </div>
+                </div>
+                <div class="flex gap-2 pointer-events-auto">
+                    <button id="btnMenu" class="glass-panel px-3 rounded-xl text-[11px] font-bold text-pink-400 flex items-center border border-pink-500/40 active:scale-95 transition-all">MENU</button>
+                    <button id="btnReset" class="glass-panel px-3 rounded-xl text-[11px] font-bold text-slate-300 flex items-center border border-slate-600/40 active:scale-95 transition-all">RESET</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Touch Controls (portrait: thumb zones) -->
+    <div id="touchControls" class="fixed inset-x-3 bottom-0 pb-6 flex justify-between items-end pointer-events-none z-30 select-none safe-bottom">
+        <div class="flex gap-3 pointer-events-auto">
+            <button id="btnLeft" class="touch-btn w-[4.5rem] h-[4.5rem] rounded-2xl flex items-center justify-center text-cyan-400 font-bold text-3xl">◄</button>
+            <button id="btnRight" class="touch-btn w-[4.5rem] h-[4.5rem] rounded-2xl flex items-center justify-center text-cyan-400 font-bold text-3xl">►</button>
+        </div>
+        <div class="flex flex-col items-end gap-2 pointer-events-auto">
+            <button id="btnNitro" class="touch-btn nitro-btn w-14 h-14 rounded-2xl flex items-center justify-center text-pink-500 font-black text-xs">NOS</button>
+            <div class="flex items-end gap-2">
+                <button id="btnBrake" class="touch-btn w-16 h-16 rounded-2xl flex items-center justify-center text-red-500 font-bold text-xl">🛑</button>
+                <button id="btnGas" class="touch-btn w-20 h-20 rounded-2xl flex items-center justify-center text-cyan-400 font-bold text-3xl">🚀</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const carPresets = [
+            { name: "APEX CYBER", color: "#00f0ff", maxSpeed: 16.0, accel: 18.0, handling: 2.8 },
+            { name: "NEON RUNNER", color: "#ff0055", maxSpeed: 14.5, accel: 21.0, handling: 3.2 },
+            { name: "PHANTOM GT", color: "#fbbf24", maxSpeed: 17.5, accel: 15.0, handling: 2.4 }
+        ];
+        let selectedCarIdx = 0;
+
+        function selectCar(idx) {
+            selectedCarIdx = idx;
+            for (let i = 0; i < 3; i++) {
+                const el = document.getElementById(`carCard${i}`);
+                if (el) el.classList.toggle('selected', i === idx);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('gameCanvas');
+            const ctx = canvas.getContext('2d');
+
+            let width = 0, height = 0;
+            function resize() {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+            }
+            window.addEventListener('resize', resize);
+            resize();
+
+            class AudioSynthesizer {
+                constructor() { this.ctx = null; }
+                init() {
+                    if (!this.ctx) {
+                        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                        this.ctx = new AudioCtx();
+                    }
+                    if (this.ctx.state === 'suspended') this.ctx.resume();
+                }
+                playBeep(freq = 440, duration = 0.15) {
+                    if (!this.ctx) return;
+                    if (this.ctx.state === 'suspended') this.ctx.resume();
+                    const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + duration);
+                    osc.connect(gain); gain.connect(this.ctx.destination);
+                    osc.start(); osc.stop(this.ctx.currentTime + duration);
+                }
+                playCrash() {
+                    if (!this.ctx) return;
+                    if (this.ctx.state === 'suspended') this.ctx.resume();
+                    const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+                    osc.type = 'square'; osc.frequency.setValueAtTime(120, this.ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(30, this.ctx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+                    osc.connect(gain); gain.connect(this.ctx.destination);
+                    osc.start(); osc.stop(this.ctx.currentTime + 0.3);
+                }
+                playVictory() {
+                    if (!this.ctx) return;
+                    if (this.ctx.state === 'suspended') this.ctx.resume();
+                    [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                        const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
+                        osc.frequency.setValueAtTime(freq, this.ctx.currentTime + i * 0.12);
+                        gain.gain.setValueAtTime(0.2, this.ctx.currentTime + i * 0.12);
+                        gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + i * 0.12 + 0.3);
+                        osc.connect(gain); gain.connect(this.ctx.destination);
+                        osc.start(this.ctx.currentTime + i * 0.12);
+                        osc.stop(this.ctx.currentTime + i * 0.12 + 0.3);
+                    });
+                }
+            }
+
+            const audio = new AudioSynthesizer();
+
+            const startScreenEl = document.getElementById('startScreen');
+            const victoryScreenEl = document.getElementById('victoryScreen');
+            const victoryLapTimeEl = document.getElementById('victoryLapTime');
+            const victoryBestTimeEl = document.getElementById('victoryBestTime');
+            const victoryPilotNameEl = document.getElementById('victoryPilotName');
+            const playerNameInput = document.getElementById('playerNameInput');
+            const hudPilotNameLabel = document.getElementById('hudPilotNameLabel');
+            const leaderboardListEl = document.getElementById('leaderboardList');
+            const btnClearLeaderboard = document.getElementById('btnClearLeaderboard');
+            const speedValEl = document.getElementById('speedValue');
+            const posValEl = document.getElementById('posValue');
+            const nitroFillEl = document.getElementById('nitroFill');
+            const currentLapEl = document.getElementById('currentLapTimer');
+            const bestLapEl = document.getElementById('bestLapTimer');
+            const crashOverlayEl = document.getElementById('crashOverlay');
+            const notifyBannerEl = document.getElementById('notifyBanner');
+            const bannerCardEl = document.getElementById('bannerCard');
+            const bannerTitleEl = document.getElementById('bannerTitle');
+            const bannerSubEl = document.getElementById('bannerSub');
+            const countdownOverlayEl = document.getElementById('countdownOverlay');
+            const countdownTextEl = document.getElementById('countdownText');
+            const povSteeringWheelEl = document.getElementById('povSteeringWheel');
+
+            const keys = { forward: false, backward: false, left: false, right: false, nitro: false };
+            let isResetting = false;
+            let isPaused = true;
+            let isCountingDown = false;
+            let countdownToken = 0;
+            let pilotName = "Amin";
+
+            let lapStartTime = performance.now();
+            let currentLapTime = 0;
+            let bestLapTime = null;
+            let passedHalfway = false;
+
+            const rawTrackPoints = [
+                { x: 0, y: 0 }, { x: 700, y: -150 }, { x: 1300, y: 200 },
+                { x: 1600, y: 800 }, { x: 1300, y: 1500 }, { x: 700, y: 1800 },
+                { x: 0, y: 1600 }, { x: -700, y: 1800 }, { x: -1400, y: 1300 },
+                { x: -1500, y: 500 }, { x: -1000, y: -200 }, { x: -500, y: -100 }
+            ];
+
+            const TRACK_WIDTH = 180;
+            let trackSpline = [], innerBoundary = [], outerBoundary = [];
+
+            function getCatmullRomPoint(p0, p1, p2, p3, t) {
+                const t2 = t * t, t3 = t2 * t;
+                return {
+                    x: 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
+                    y: 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3)
+                };
+            }
+
+            function generateTrack() {
+                trackSpline = []; innerBoundary = []; outerBoundary = [];
+                const num = rawTrackPoints.length;
+                for (let i = 0; i < num; i++) {
+                    const p0 = rawTrackPoints[(i - 1 + num) % num], p1 = rawTrackPoints[i];
+                    const p2 = rawTrackPoints[(i + 1) % num], p3 = rawTrackPoints[(i + 2) % num];
+                    for (let step = 0; step < 25; step++) {
+                        trackSpline.push(getCatmullRomPoint(p0, p1, p2, p3, step / 25));
+                    }
+                }
+                const total = trackSpline.length;
+                for (let i = 0; i < total; i++) {
+                    const prev = trackSpline[(i - 1 + total) % total], next = trackSpline[(i + 1) % total];
+                    let dx = next.x - prev.x, dy = next.y - prev.y;
+                    const len = Math.hypot(dx, dy) || 1;
+                    const nx = -dy / len, ny = dx / len;
+                    const p = trackSpline[i];
+                    innerBoundary.push({ x: p.x + nx * (TRACK_WIDTH / 2), y: p.y + ny * (TRACK_WIDTH / 2) });
+                    outerBoundary.push({ x: p.x - nx * (TRACK_WIDTH / 2), y: p.y - ny * (TRACK_WIDTH / 2) });
+                }
+            }
+            generateTrack();
+
+            // Skid-mark layer, sized to the track bounds (smaller than 4000x4000 to save phone memory)
+            const SKID_OFFSET_X = 1800, SKID_OFFSET_Y = 600;
+            const skidCanvas = document.createElement('canvas');
+            skidCanvas.width = 3600; skidCanvas.height = 2600;
+            const skidCtx = skidCanvas.getContext('2d');
+
+            function clearSkidMarks() {
+                skidCtx.clearRect(0, 0, skidCanvas.width, skidCanvas.height);
+            }
+
+            const car = {
+                x: 0, y: 0, angle: 0, speed: 0, vx: 0, vy: 0, angularVelocity: 0,
+                maxSpeed: 16, maxReverseSpeed: -5, accel: 18, brake: 28, friction: 0.98,
+                lateralGrip: 0.88, nitro: 100, maxNitro: 100, radius: 14, color: "#00f0ff",
+                lapCount: 0, waypointIdx: 0
+            };
+
+            const cpuRacers = [
+                { id: 'CPU Alpha', color: '#10b981', targetSpeed: 13.5, accel: 14.0, speed: 0, currentWaypoint: 1, x: 0, y: 0, vx: 0, vy: 0, angle: 0, radius: 14, lapCount: 0 },
+                { id: 'CPU Venom', color: '#a855f7', targetSpeed: 13.0, accel: 15.0, speed: 0, currentWaypoint: 1, x: 0, y: 0, vx: 0, vy: 0, angle: 0, radius: 14, lapCount: 0 },
+                { id: 'CPU Apex', color: '#f59e0b', targetSpeed: 14.2, accel: 13.5, speed: 0, currentWaypoint: 1, x: 0, y: 0, vx: 0, vy: 0, angle: 0, radius: 14, lapCount: 0 }
+            ];
+
+            const camera = { x: 0, y: 0, angle: 0, shake: 0 };
+
+            function getSavedLeaderboard() {
+                try {
+                    const data = localStorage.getItem('neon_apex_leaderboard_v1');
+                    return data ? JSON.parse(data) : [];
+                } catch (e) {
+                    return [];
+                }
+            }
+
+            function saveScoreToLeaderboard(name, msTime, vehicleName) {
+                const list = getSavedLeaderboard();
+                list.push({ name: name || "Pilot", time: msTime, vehicle: vehicleName, date: new Date().toLocaleDateString() });
+                list.sort((a, b) => a.time - b.time);
+                const top5 = list.slice(0, 5);
+                try {
+                    localStorage.setItem('neon_apex_leaderboard_v1', JSON.stringify(top5));
+                } catch (e) {}
+                renderLeaderboardUI(top5);
+            }
+
+            function escapeHtml(s) {
+                return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+            }
+
+            function renderLeaderboardUI(scores) {
+                const list = scores || getSavedLeaderboard();
+                if (!leaderboardListEl) return;
+                leaderboardListEl.innerHTML = '';
+                if (list.length === 0) {
+                    leaderboardListEl.innerHTML = `<div class="text-slate-500 text-[10px] text-center py-2">NO RECORDS SET YET</div>`;
+                    return;
+                }
+                list.forEach((item, idx) => {
+                    const row = document.createElement('div');
+                    row.className = "flex justify-between items-center bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/40";
+                    row.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold ${idx === 0 ? 'text-amber-400' : 'text-slate-400'}">#${idx + 1}</span>
+                            <span class="text-white font-bold">${escapeHtml(item.name)}</span>
+                            <span class="text-[9px] text-cyan-400 bg-slate-900/80 px-1.5 py-0.5 rounded">${escapeHtml(item.vehicle || 'APEX')}</span>
+                        </div>
+                        <span class="font-bold text-emerald-400">${formatTime(item.time)}</span>
+                    `;
+                    leaderboardListEl.appendChild(row);
+                });
+            }
+
+            if (btnClearLeaderboard) {
+                btnClearLeaderboard.addEventListener('click', () => {
+                    try { localStorage.removeItem('neon_apex_leaderboard_v1'); } catch (e) {}
+                    renderLeaderboardUI([]);
+                });
+            }
+
+            function formatTime(ms) {
+                const mins = Math.floor(ms / 60000);
+                const secs = Math.floor((ms % 60000) / 1000);
+                const hundredths = Math.floor((ms % 1000) / 10);
+                return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(hundredths).padStart(2, '0')}`;
+            }
+
+            function triggerBanner(title, sub, isSuccess = false) {
+                if (!bannerTitleEl || !bannerSubEl || !notifyBannerEl) return;
+                bannerTitleEl.textContent = title;
+                bannerSubEl.textContent = sub;
+                if (isSuccess) {
+                    if (bannerCardEl) bannerCardEl.className = "glass-panel px-6 py-4 rounded-2xl border-2 border-emerald-400 shadow-[0_0_50px_rgba(16,185,129,0.6)]";
+                    bannerTitleEl.className = "text-3xl font-black text-emerald-400 tracking-wider";
+                } else {
+                    if (bannerCardEl) bannerCardEl.className = "glass-panel px-6 py-4 rounded-2xl border-2 border-red-500 shadow-[0_0_50px_rgba(255,0,0,0.6)]";
+                    bannerTitleEl.className = "text-3xl font-black text-red-500 tracking-wider";
+                }
+                notifyBannerEl.classList.remove('hidden');
+                notifyBannerEl.classList.add('banner-anim');
+                setTimeout(() => {
+                    notifyBannerEl.classList.add('hidden');
+                    notifyBannerEl.classList.remove('banner-anim');
+                }, 1400);
+            }
+
+            function setup2x2StartingGrid() {
+                const pStart = trackSpline[0];
+                const pNext = trackSpline[1];
+                const trackAngle = Math.atan2(pNext.y - pStart.y, pNext.x - pStart.x);
+
+                const fwdX = Math.cos(trackAngle), fwdY = Math.sin(trackAngle);
+                const perpX = -fwdY, perpY = fwdX;
+
+                const rowSpacing = 45;
+                const laneOffset = 32;
+
+                car.x = pStart.x - perpX * laneOffset;
+                car.y = pStart.y - perpY * laneOffset;
+                car.angle = trackAngle;
+                car.speed = 0; car.vx = 0; car.vy = 0; car.angularVelocity = 0;
+                car.waypointIdx = 0;
+
+                cpuRacers[0].x = pStart.x + perpX * laneOffset;
+                cpuRacers[0].y = pStart.y + perpY * laneOffset;
+                cpuRacers[0].angle = trackAngle;
+                cpuRacers[0].vx = 0; cpuRacers[0].vy = 0; cpuRacers[0].speed = 0;
+                cpuRacers[0].currentWaypoint = 1;
+
+                cpuRacers[1].x = pStart.x - fwdX * rowSpacing - perpX * laneOffset;
+                cpuRacers[1].y = pStart.y - fwdY * rowSpacing - perpY * laneOffset;
+                cpuRacers[1].angle = trackAngle;
+                cpuRacers[1].vx = 0; cpuRacers[1].vy = 0; cpuRacers[1].speed = 0;
+                cpuRacers[1].currentWaypoint = 1;
+
+                cpuRacers[2].x = pStart.x - fwdX * rowSpacing + perpX * laneOffset;
+                cpuRacers[2].y = pStart.y - fwdY * rowSpacing + perpY * laneOffset;
+                cpuRacers[2].angle = trackAngle;
+                cpuRacers[2].vx = 0; cpuRacers[2].vy = 0; cpuRacers[2].speed = 0;
+                cpuRacers[2].currentWaypoint = 1;
+
+                camera.x = car.x;
+                camera.y = car.y;
+                camera.angle = car.angle;
+                camera.shake = 0;
+            }
+
+            function fullSessionReset() {
+                const preset = carPresets[selectedCarIdx];
+                car.maxSpeed = preset.maxSpeed;
+                car.accel = preset.accel;
+                car.lateralGrip = preset.handling > 3.0 ? 0.92 : 0.88;
+                car.color = preset.color;
+                car.nitro = 100;
+                car.lapCount = 0;
+                car.waypointIdx = 0;
+
+                cpuRacers.forEach(cpu => {
+                    cpu.speed = 0;
+                    cpu.lapCount = 0;
+                });
+
+                if (playerNameInput) pilotName = playerNameInput.value.trim() || "Amin";
+                if (hudPilotNameLabel) hudPilotNameLabel.textContent = pilotName.toUpperCase();
+
+                setup2x2StartingGrid();
+                clearSkidMarks();
+
+                passedHalfway = false;
+                currentLapTime = 0;
+                if (currentLapEl) currentLapEl.textContent = "00:00.00";
+            }
+
+            function startCountdownSequence() {
+                const token = ++countdownToken;
+                isPaused = true;
+                isCountingDown = true;
+                countdownOverlayEl.classList.remove('hidden');
+
+                const steps = [
+                    { text: "3", freq: 440 },
+                    { text: "2", freq: 440 },
+                    { text: "1", freq: 440 },
+                    { text: "GO!", freq: 880 }
+                ];
+
+                let stepIdx = 0;
+                function runStep() {
+                    if (token !== countdownToken) return; // cancelled (e.g. MENU pressed)
+                    if (stepIdx < steps.length) {
+                        const cur = steps[stepIdx];
+                        countdownTextEl.textContent = cur.text;
+                        audio.playBeep(cur.freq, cur.text === "GO!" ? 0.4 : 0.15);
+                        stepIdx++;
+                        setTimeout(runStep, 800);
+                    } else {
+                        countdownOverlayEl.classList.add('hidden');
+                        isCountingDown = false;
+                        isPaused = false;
+                        lapStartTime = performance.now();
+                    }
+                }
+                runStep();
+            }
+
+            function resetCarToCheckpoint() {
+                if (isResetting) return;
+                isResetting = true;
+                camera.shake = 20;
+                audio.playCrash();
+                if (crashOverlayEl) crashOverlayEl.style.opacity = '1';
+                triggerBanner('CRASHED!', 'Resetting to track position...');
+                setTimeout(() => { if (crashOverlayEl) crashOverlayEl.style.opacity = '0'; }, 200);
+
+                setTimeout(() => {
+                    let minDist = Infinity, nearestIdx = 0;
+                    for (let i = 0; i < trackSpline.length; i++) {
+                        const d = Math.hypot(car.x - trackSpline[i].x, car.y - trackSpline[i].y);
+                        if (d < minDist) { minDist = d; nearestIdx = i; }
+                    }
+                    const p1 = trackSpline[nearestIdx], p2 = trackSpline[(nearestIdx + 1) % trackSpline.length];
+                    car.x = p1.x; car.y = p1.y;
+                    car.angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+                    car.speed = 0; car.vx = 0; car.vy = 0; car.angularVelocity = 0;
+                    isResetting = false;
+                }, 700);
+            }
+
+            function getNearestWaypointIndex(obj) {
+                let minDist = Infinity, idx = 0;
+                for (let i = 0; i < trackSpline.length; i++) {
+                    const d = Math.hypot(obj.x - trackSpline[i].x, obj.y - trackSpline[i].y);
+                    if (d < minDist) { minDist = d; idx = i; }
+                }
+                return idx;
+            }
+
+            function updatePhysics(dt) {
+                if (isResetting || isPaused || isCountingDown) return;
+
+                currentLapTime = performance.now() - lapStartTime;
+                if (currentLapEl) currentLapEl.textContent = formatTime(currentLapTime);
+
+                const speedFactor = Math.min(Math.abs(car.speed) / car.maxSpeed, 1.0);
+                let steer = (keys.left ? -1 : 0) + (keys.right ? 1 : 0);
+                if (car.speed < 0) steer = -steer;
+
+                car.angularVelocity = steer * 2.8 * (0.35 + 0.65 * (1 - speedFactor * 0.4));
+                car.angle += car.angularVelocity * dt;
+
+                let activeMaxSpeed = car.maxSpeed, currentAccel = car.accel;
+                if (keys.nitro && car.nitro > 0 && keys.forward) {
+                    activeMaxSpeed *= 1.45; currentAccel *= 2.2;
+                    car.nitro = Math.max(0, car.nitro - 35 * dt);
+                } else {
+                    car.nitro = Math.min(car.maxNitro, car.nitro + 12 * dt);
+                }
+
+                if (keys.forward) car.speed = Math.min(car.speed + currentAccel * dt, activeMaxSpeed);
+                else if (keys.backward) car.speed = Math.max(car.speed - car.brake * dt, car.maxReverseSpeed);
+                else car.speed *= Math.pow(car.friction, dt * 60);
+
+                const fwd = { x: Math.cos(car.angle), y: Math.sin(car.angle) };
+                car.vx = car.vx * car.lateralGrip + (fwd.x * car.speed) * (1 - car.lateralGrip);
+                car.vy = car.vy * car.lateralGrip + (fwd.y * car.speed) * (1 - car.lateralGrip);
+                car.x += car.vx; car.y += car.vy;
+
+                if (Math.abs(car.speed) > 7 && Math.abs(steer) > 0.5) {
+                    skidCtx.strokeStyle = 'rgba(0, 240, 255, 0.25)';
+                    skidCtx.lineWidth = 4;
+                    skidCtx.beginPath();
+                    skidCtx.arc(car.x + SKID_OFFSET_X, car.y + SKID_OFFSET_Y, 6, 0, Math.PI * 2);
+                    skidCtx.stroke();
+                }
+
+                cpuRacers.forEach(cpu => {
+                    const target = trackSpline[cpu.currentWaypoint];
+                    const dx = target.x - cpu.x, dy = target.y - cpu.y;
+                    const dist = Math.hypot(dx, dy);
+
+                    if (dist < 80) {
+                        const prevWaypoint = cpu.currentWaypoint;
+                        cpu.currentWaypoint = (cpu.currentWaypoint + 1) % trackSpline.length;
+                        if (cpu.currentWaypoint === 0 && prevWaypoint > trackSpline.length - 10) {
+                            cpu.lapCount++;
+                        }
+                    }
+
+                    const targetAngle = Math.atan2(dy, dx);
+                    let diffAngle = targetAngle - cpu.angle;
+                    while (diffAngle < -Math.PI) diffAngle += Math.PI * 2;
+                    while (diffAngle > Math.PI) diffAngle -= Math.PI * 2;
+                    cpu.angle += diffAngle * 0.08;
+
+                    const cornerFactor = Math.max(0.4, 1.0 - Math.abs(diffAngle));
+                    const targetVelocity = cpu.targetSpeed * cornerFactor;
+
+                    if (cpu.speed < targetVelocity) {
+                        cpu.speed = Math.min(targetVelocity, cpu.speed + cpu.accel * dt);
+                    } else {
+                        cpu.speed = Math.max(targetVelocity, cpu.speed - 12 * dt);
+                    }
+
+                    cpu.vx = Math.cos(cpu.angle) * cpu.speed;
+                    cpu.vy = Math.sin(cpu.angle) * cpu.speed;
+                    cpu.x += cpu.vx; cpu.y += cpu.vy;
+
+                    const cDist = Math.hypot(car.x - cpu.x, car.y - cpu.y);
+                    if (cDist < car.radius + cpu.radius) {
+                        audio.playCrash();
+                        camera.shake = 12;
+                        const nx = (car.x - cpu.x) / (cDist || 1);
+                        const ny = (car.y - cpu.y) / (cDist || 1);
+                        car.x += nx * 10; car.y += ny * 10;
+                        car.speed *= 0.6;
+                    }
+                });
+
+                car.waypointIdx = getNearestWaypointIndex(car);
+                let rank = 1;
+                const playerProgress = (car.lapCount * trackSpline.length) + car.waypointIdx;
+                cpuRacers.forEach(cpu => {
+                    const cpuProgress = (cpu.lapCount * trackSpline.length) + cpu.currentWaypoint;
+                    if (cpuProgress > playerProgress) rank++;
+                });
+                if (posValEl) posValEl.textContent = `${rank}/4`;
+
+                const finishDist = Math.hypot(car.x - trackSpline[0].x, car.y - trackSpline[0].y);
+                const halfwayDist = Math.hypot(car.x - trackSpline[Math.floor(trackSpline.length / 2)].x, car.y - trackSpline[Math.floor(trackSpline.length / 2)].y);
+
+                if (halfwayDist < 140) passedHalfway = true;
+
+                if (finishDist < 100 && passedHalfway) {
+                    passedHalfway = false;
+                    car.lapCount++;
+                    const finalLap = currentLapTime;
+
+                    if (!bestLapTime || finalLap < bestLapTime) {
+                        bestLapTime = finalLap;
+                        if (bestLapEl) bestLapEl.textContent = formatTime(bestLapTime);
+                    }
+
+                    if (victoryLapTimeEl) victoryLapTimeEl.textContent = formatTime(finalLap);
+                    if (victoryBestTimeEl) victoryBestTimeEl.textContent = formatTime(bestLapTime);
+                    if (victoryPilotNameEl) victoryPilotNameEl.textContent = pilotName;
+
+                    saveScoreToLeaderboard(pilotName, finalLap, carPresets[selectedCarIdx].name);
+
+                    audio.playVictory();
+                    isPaused = true;
+                    if (victoryScreenEl) victoryScreenEl.classList.remove('hidden');
+                }
+
+                const len = innerBoundary.length;
+                for (let i = 0; i < len; i++) {
+                    const checkSegment = (v, w) => {
+                        const l2 = (w.x - v.x) ** 2 + (w.y - v.y) ** 2;
+                        if (l2 === 0) return (car.x - v.x) ** 2 + (car.y - v.y) ** 2;
+                        let t = Math.max(0, Math.min(1, ((car.x - v.x) * (w.x - v.x) + (car.y - v.y) * (w.y - v.y)) / l2));
+                        return (car.x - (v.x + t * (w.x - v.x))) ** 2 + (car.y - (v.y + t * (w.y - v.y))) ** 2;
+                    };
+                    if (checkSegment(innerBoundary[i], innerBoundary[(i + 1) % len]) < car.radius ** 2 ||
+                        checkSegment(outerBoundary[i], outerBoundary[(i + 1) % len]) < car.radius ** 2) {
+                        resetCarToCheckpoint(); break;
+                    }
+                }
+
+                camera.x += (car.x - camera.x) * 0.12;
+                camera.y += (car.y - camera.y) * 0.12;
+                let diffAngle = car.angle - camera.angle;
+                while (diffAngle < -Math.PI) diffAngle += Math.PI * 2;
+                while (diffAngle > Math.PI) diffAngle -= Math.PI * 2;
+                camera.angle += diffAngle * 0.15;
+
+                if (speedValEl) speedValEl.textContent = Math.floor(Math.abs(car.speed) * 14);
+                if (nitroFillEl) nitroFillEl.style.width = `${(car.nitro / car.maxNitro) * 100}%`;
+                if (povSteeringWheelEl) {
+                    povSteeringWheelEl.style.transform = `translateY(4rem) rotate(${steer * 40}deg)`;
+                }
+            }
+
+            function drawCarIcon(ctx, targetCar, isBraking = false) {
+                ctx.fillStyle = '#0f172a';
+                ctx.fillRect(-14, -13, 10, 5); ctx.fillRect(-14, 8, 10, 5);
+                ctx.fillRect(10, -13, 10, 5);  ctx.fillRect(10, 8, 10, 5);
+
+                ctx.fillStyle = '#0a0e1a';
+                ctx.beginPath(); ctx.moveTo(-20, -10); ctx.lineTo(-8, -12); ctx.lineTo(12, -11);
+                ctx.lineTo(20, -8); ctx.lineTo(22, 0); ctx.lineTo(20, 8); ctx.lineTo(12, 11);
+                ctx.lineTo(-8, 12); ctx.lineTo(-20, 10); ctx.closePath(); ctx.fill();
+
+                ctx.strokeStyle = targetCar.color || '#00f0ff';
+                ctx.lineWidth = 2; ctx.shadowColor = targetCar.color || '#00f0ff'; ctx.shadowBlur = 10; ctx.stroke();
+
+                ctx.fillStyle = '#1e293b'; ctx.beginPath(); ctx.moveTo(-4, -7); ctx.lineTo(6, -6); ctx.lineTo(8, 0); ctx.lineTo(6, 6); ctx.lineTo(-4, 7); ctx.closePath(); ctx.fill(); ctx.strokeStyle = targetCar.color; ctx.stroke();
+                ctx.fillStyle = '#ff0055'; ctx.shadowBlur = 8; ctx.fillRect(-22, -11, 4, 22);
+
+                ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 12; ctx.fillRect(18, -9, 3, 4); ctx.fillRect(18, 5, 3, 4);
+                ctx.fillStyle = isBraking ? '#ff0000' : '#770000'; ctx.shadowBlur = isBraking ? 18 : 4; ctx.fillRect(-21, -8, 2, 4); ctx.fillRect(-21, 4, 2, 4);
+                ctx.shadowBlur = 0;
+            }
+
+            function render() {
+                ctx.fillStyle = '#05070c';
+                ctx.fillRect(0, 0, width, height);
+
+                ctx.save();
+                // Portrait POV: car sits lower-middle of the screen, slight zoom-out on narrow screens
+                const zoom = width < 600 ? 0.85 : 1;
+                ctx.translate(width / 2, height * 0.68);
+                ctx.scale(zoom, zoom);
+                ctx.rotate(-camera.angle - Math.PI / 2);
+                ctx.translate(-camera.x, -camera.y);
+
+                ctx.drawImage(skidCanvas, -SKID_OFFSET_X, -SKID_OFFSET_Y);
+
+                ctx.beginPath();
+                ctx.moveTo(outerBoundary[0].x, outerBoundary[0].y);
+                for (let i = 1; i < outerBoundary.length; i++) ctx.lineTo(outerBoundary[i].x, outerBoundary[i].y);
+                ctx.fillStyle = '#0d1322'; ctx.fill();
+
+                ctx.beginPath();
+                ctx.moveTo(innerBoundary[0].x, innerBoundary[0].y);
+                for (let i = 1; i < innerBoundary.length; i++) ctx.lineTo(innerBoundary[i].x, innerBoundary[i].y);
+                ctx.fillStyle = '#05070c'; ctx.fill();
+
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([20, 20]);
+                ctx.beginPath();
+                ctx.moveTo(trackSpline[0].x, trackSpline[0].y);
+                for (let i = 1; i < trackSpline.length; i++) ctx.lineTo(trackSpline[i].x, trackSpline[i].y);
+                ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+
+                const fP1 = innerBoundary[0], fP2 = outerBoundary[0];
+                ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 12;
+                ctx.setLineDash([12, 12]);
+                ctx.beginPath(); ctx.moveTo(fP1.x, fP1.y); ctx.lineTo(fP2.x, fP2.y); ctx.stroke();
+                ctx.setLineDash([]);
+
+                const drawRail = (pts, color) => {
+                    ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+                    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+                    ctx.closePath(); ctx.strokeStyle = color; ctx.lineWidth = 5;
+                    ctx.shadowColor = color; ctx.shadowBlur = 12; ctx.stroke(); ctx.shadowBlur = 0;
+                };
+                drawRail(innerBoundary, '#00f0ff');
+                drawRail(outerBoundary, '#ff0055');
+
+                cpuRacers.forEach(cpu => {
+                    ctx.save();
+                    ctx.translate(cpu.x, cpu.y);
+                    ctx.rotate(cpu.angle);
+                    drawCarIcon(ctx, cpu);
+                    ctx.restore();
+                });
+
+                ctx.save();
+                ctx.translate(car.x, car.y);
+                ctx.rotate(car.angle);
+                drawCarIcon(ctx, car, keys.backward);
+                ctx.restore();
+
+                ctx.restore();
+            }
+
+            // Keyboard (kept for desktop testing)
+            window.addEventListener('keydown', e => {
+                if (e.target && e.target.tagName === 'INPUT') return;
+                if (e.key === 'ArrowUp' || e.key.toLowerCase() === 'w') keys.forward = true;
+                if (e.key === 'ArrowDown' || e.key.toLowerCase() === 's') keys.backward = true;
+                if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') keys.left = true;
+                if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') keys.right = true;
+                if (e.key === ' ' || e.key === 'Shift') keys.nitro = true;
+            });
+            window.addEventListener('keyup', e => {
+                if (e.key === 'ArrowUp' || e.key.toLowerCase() === 'w') keys.forward = false;
+                if (e.key === 'ArrowDown' || e.key.toLowerCase() === 's') keys.backward = false;
+                if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') keys.left = false;
+                if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') keys.right = false;
+                if (e.key === ' ' || e.key === 'Shift') keys.nitro = false;
+            });
+
+            // Touch controls (pointer events: multi-touch + cancel-safe)
+            function bindTouchBtn(id, keyProp) {
+                const btn = document.getElementById(id);
+                if (!btn) return;
+                const start = (e) => {
+                    e.preventDefault();
+                    audio.init();
+                    keys[keyProp] = true;
+                    btn.classList.add('active');
+                    try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+                };
+                const end = (e) => {
+                    e.preventDefault();
+                    keys[keyProp] = false;
+                    btn.classList.remove('active');
+                };
+                btn.addEventListener('pointerdown', start);
+                btn.addEventListener('pointerup', end);
+                btn.addEventListener('pointercancel', end);
+                btn.addEventListener('lostpointercapture', end);
+                btn.addEventListener('contextmenu', e => e.preventDefault());
+            }
+            bindTouchBtn('btnGas', 'forward');
+            bindTouchBtn('btnBrake', 'backward');
+            bindTouchBtn('btnLeft', 'left');
+            bindTouchBtn('btnRight', 'right');
+            bindTouchBtn('btnNitro', 'nitro');
+
+            const btnReset = document.getElementById('btnReset');
+            if (btnReset) {
+                btnReset.addEventListener('click', () => {
+                    audio.init();
+                    audio.playBeep(600);
+                    fullSessionReset();
+                    startCountdownSequence();
+                });
+            }
+
+            const btnMenu = document.getElementById('btnMenu');
+            if (btnMenu) {
+                btnMenu.addEventListener('click', () => {
+                    audio.playBeep(500);
+                    countdownToken++; // cancel any running countdown
+                    isCountingDown = false;
+                    countdownOverlayEl.classList.add('hidden');
+                    fullSessionReset();
+                    isPaused = true;
+                    if (startScreenEl) startScreenEl.classList.remove('hidden');
+                });
+            }
+
+            const btnStartGame = document.getElementById('btnStartGame');
+            if (btnStartGame) {
+                btnStartGame.addEventListener('click', () => {
+                    audio.init();
+                    if (startScreenEl) startScreenEl.classList.add('hidden');
+                    fullSessionReset();
+                    startCountdownSequence();
+                });
+            }
+
+            const btnRaceAgain = document.getElementById('btnRaceAgain');
+            if (btnRaceAgain) {
+                btnRaceAgain.addEventListener('click', () => {
+                    if (victoryScreenEl) victoryScreenEl.classList.add('hidden');
+                    fullSessionReset();
+                    startCountdownSequence();
+                });
+            }
+
+            renderLeaderboardUI();
+            setup2x2StartingGrid();
+
+            let lastTime = performance.now();
+            function loop(now) {
+                const dt = Math.min((now - lastTime) / 1000, 0.1);
+                lastTime = now;
+                updatePhysics(dt);
+                render();
+                requestAnimationFrame(loop);
+            }
+            requestAnimationFrame(loop);
+        });
+    </script>
+</body>
+</html>
